@@ -29,8 +29,8 @@
     ![](images/AgentId.png)
     
     
-    进入 [接收消息] 设置
-    > 1. URL: 填写你服务器地址:端口/auth( 例如: http://yanjunhui.com:4567/auth )
+    进入 [接收消息] 设置(可不做设置)
+    > 1. URL: 填写你服务器地址:端口/auth( 例如: http://chat_ip:4567/auth )
     > 2. Token: 随机获取(这个发送信息用不到,可忽略)
     > 3. EncodingAESKey: 随机获取,就是我们在配置文件配置的 EncodingAESKey
     
@@ -42,6 +42,8 @@
     tos     微信用户名
     content 信息内容
     
+example:
+curl -X POST -d "tos=YourAccount"  --data-urlencode "content=hello,word\!" http://127.0.0.1:4567/send
 
 ### OpenFalcon+ 配置:
 
@@ -49,7 +51,7 @@
 
 ```
 "api": {
-        "sms": "http://yanjunhui.com:4567/send",
+        "sms": "http://chat_ip:4567/send",
         "mail": "http://127.0.0.1:10086/mail",
         "dashboard": "http://127.0.0.1:8081",
         "plus_api":"http://127.0.0.1:8080",
@@ -66,7 +68,7 @@
 
 ```
     "api": {
-        "sms": "http://yanjunhui.com:4567/send",
+        "sms": "http://chat_ip:4567/send",
         "mail": "http://11.11.11.11:9000/mail"
     }
 ```
@@ -83,7 +85,7 @@
 ```
 
 ### 使用
-> 1. clone 文件 `git clone https://www.github.com/yanjunhui/chat.git`
+> 1. clone 文件 `git clone https://github.com/GitHamburg/chat.git`
 > 2. 打开目录 `cd chat`
 > 3. 启动 `./control.sh start`
 > 4. 停止 `./control.sh stop`

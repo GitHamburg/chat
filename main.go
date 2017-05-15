@@ -16,9 +16,9 @@ import (
 	"github.com/yanjunhui/goini"
 	"io/ioutil"
 	"net/http"
-	"os"
-	"os/exec"
-	"path/filepath"
+	//"os"
+	//"os/exec"
+	//"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -40,6 +40,8 @@ func init() {
 }
 
 func main() {
+
+	log.Printf("WorkPath= %v,corpId= v%",WorkPath,corpId)
 
 	go GetAccessTokenFromWeixin()
 
@@ -233,9 +235,9 @@ func WxPost(url string, data MsgPost) (string, error) {
 
 //获取当前运行路径
 func GetWorkPath() string {
-	if file, err := exec.LookPath(os.Args[0]); err == nil {
-		return filepath.Dir(file) + "/"
-	}
+	//if file, err := exec.LookPath(os.Args[0]); err == nil {
+	//	return filepath.Dir(file) + "/"
+	//}
 	return "./"
 }
 
