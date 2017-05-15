@@ -17,12 +17,12 @@
 ### END INIT INFO
 
 # Source function library.
-. /etc/init.d/functions
+#. /etc/init.d/functions
 
 #工作目录
 workPath=$(cd $(dirname $0)/; pwd)
 
-bin=$workPath/main
+bin=$workPath/chat
 pidFile=$workPath/pid
 logFile=$workPath/info.log
 
