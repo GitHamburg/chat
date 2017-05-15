@@ -42,8 +42,11 @@
     tos     微信用户名
     content 信息内容
     
-example:
-curl -X POST -d "tos=YourAccount"  --data-urlencode "content=hello,word\!" http://127.0.0.1:4567/send
+    example:
+    curl -X POST -d "tos=YourAccount"  --data-urlencode "content=hello,word\!" http://127.0.0.1:4567/send
+    
+    备注：如果content包含感叹后，请加斜杠转义.
+    
 
 ### OpenFalcon+ 配置:
 
