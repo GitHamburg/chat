@@ -46,7 +46,7 @@ func main() {
 	e := echo.New()
 	e.Logger.SetLevel(log.INFO)
 	e.Use(middleware.Logger())
-	e.GET("/auth", WxAuth)
+	//e.GET("/auth", WxAuth)
 	e.POST("/send", SendMsg)
 
 	port := GetConfig.GetValue("http", "port")
