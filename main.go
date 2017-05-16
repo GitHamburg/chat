@@ -158,7 +158,7 @@ func SendMsg(context echo.Context) error {
 
 		msg := MsgPost{
 			ToUser:  toUser,
-			MsgType: msgtype,
+			MsgType: "text",
 			AgentID: StringToInt(agentId),
 			Text:    text,
 		}
