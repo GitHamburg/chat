@@ -22,6 +22,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"mime/multipart"
+	"os"
+	"io"
 )
 
 var (
@@ -50,7 +53,7 @@ func main() {
 	e.Use(middleware.Logger())
 	//e.GET("/auth", WxAuth)
 	e.POST("/send", SendMsg)
-
+	e.POST("/upload", uploadFile)
 	port := GetConfig.GetValue("http", "port")
 	if port == "no value" {
 		e.Logger.Fatal(e.Start("0.0.0.0:4567"))
@@ -60,6 +63,7 @@ func main() {
 }
 
 //发送信息
+//text
 type Content struct {
 	Content string `json:"content"`
 }
@@ -71,9 +75,22 @@ type MsgPost struct {
 	Text    Content `json:"text"`
 }
 
+//image
+type Media_id struct {
+	Media_id string `json:"media_id"`
+}
+
+type ImgMsgPost struct {
+	ToUser  string  `json:"touser"`
+	MsgType string  `json:"msgtype"`
+	AgentID int     `json:"agentid"`
+	Image   Media_id `json:"image"`
+}
+
 func SendMsg(context echo.Context) error {
 	toUser := context.FormValue("tos")
 	content := context.FormValue("content")
+	msgtype := context.FormValue("type")
 	//content := "[P0][OK][192.168.11.26_ofmon][][【critical】与主mysql同步延迟超过10s！ all(#3) seconds_behind_master port=3306 0>10][O1 2017-04-17 08:55:00]"
 	content = strings.Replace(content, "][", "\n", -1)
 	if content[0] == '[' {
@@ -88,15 +105,6 @@ func SendMsg(context echo.Context) error {
 		toUser = strings.Join(userList, "|")
 	}
 
-	text := Content{}
-	text.Content = content
-
-	msg := MsgPost{
-		ToUser:  toUser,
-		MsgType: "text",
-		AgentID: StringToInt(agentId),
-		Text:    text,
-	}
 
 	token, found := TokenCache.Get("token")
 	if !found {
@@ -110,12 +118,59 @@ func SendMsg(context echo.Context) error {
 
 	url := "https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token=" + accessToken.AccessToken
 
-	result, err := WxPost(url, msg)
-	if err != nil {
-		log.Printf("请求微信失败: %v", err)
+	if msgtype == "text" {
+		text := Content{}
+		text.Content = content
+
+		msg := MsgPost{
+			ToUser:  toUser,
+			MsgType: msgtype,
+			AgentID: StringToInt(agentId),
+			Text:    text,
+		}
+
+		result, err := WxPost(url, msg)
+		if err != nil {
+			log.Printf("请求微信失败: %v", err)
+		}
+		log.Printf("发送信息给%s, 信息内容: %s, 微信返回结果: %v", toUser, content, result)
+		return context.String(200, string(result))
+	}else if msgtype == "image" {
+		media_id := Media_id{}
+		media_id.Media_id = content
+
+		msg := ImgMsgPost{
+			ToUser:  toUser,
+			MsgType: msgtype,
+			AgentID: StringToInt(agentId),
+			Image:    media_id,
+		}
+
+		result, err := WxPost(url, msg)
+		if err != nil {
+			log.Printf("请求微信失败: %v", err)
+		}
+		log.Printf("发送信息给%s, 信息内容: %s, 微信返回结果: %v", toUser, content, result)
+		return context.String(200, string(result))
+	}else {
+		text := Content{}
+		text.Content = content
+
+		msg := MsgPost{
+			ToUser:  toUser,
+			MsgType: msgtype,
+			AgentID: StringToInt(agentId),
+			Text:    text,
+		}
+
+		result, err := WxPost(url, msg)
+		if err != nil {
+			log.Printf("请求微信失败: %v", err)
+		}
+		log.Printf("发送信息给%s, 信息内容: %s, 微信返回结果: %v", toUser, content, result)
+		return context.String(200, string(result))
 	}
-	log.Printf("发送信息给%s, 信息内容: %s, 微信返回结果: %v", toUser, content, result)
-	return context.String(200, string(result))
+
 }
 
 //开启回调模式验证
@@ -213,7 +268,7 @@ func GetAccessTokenFromWeixin() {
 }
 
 //微信请求数据
-func WxPost(url string, data MsgPost) (string, error) {
+func WxPost(url string, data interface{}) (string, error) {
 	jsonBody, err := encodeJson(data)
 	if err != nil {
 		return "", err
@@ -281,4 +336,84 @@ func encodeJson(v interface{}) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+func uploadFile(context echo.Context) error {
+	filename := context.FormValue("filename")
+	token, found := TokenCache.Get("token")
+	if !found {
+		log.Printf("token获取失败!")
+		return context.String(200, "token获取失败!")
+	}
+	accessToken, ok := token.(AccessToken)
+	if !ok {
+		return context.String(200, "token解析失败!")
+	}
+
+	url := "https://qyapi.weixin.qq.com/cgi-bin/media/upload?access_token=" + accessToken.AccessToken + "type=image"
+
+	result, err := postFile(filename,url)
+	if err != nil {
+		log.Printf("请求微信失败: %v", err)
+	}
+	log.Printf("上传图片，微信返回结果: %v", result)
+	return context.String(200, string(result))
+
+}
+func postFile(filename, targetUrl string) (string, error) {
+	var (
+		bodyBuf         *bytes.Buffer
+		bodyWriter      *multipart.Writer
+		file            *os.File
+		err             error
+		contentType     string
+		client          http.Client
+		req             *http.Request
+		resp            *http.Response
+		respBody        []byte
+	)
+	bodyBuf = &bytes.Buffer{}
+	bodyWriter = multipart.NewWriter(bodyBuf)
+
+	fileWriter, err := bodyWriter.CreateFormFile("PolkaFile",filename)
+	if err != nil {
+		return "file writer error",err
+	}
+
+	file, err = os.Open(filename)
+	defer file.Close()
+	if err != nil {
+		return "file close error",err
+	}
+
+	_, err = io.Copy(fileWriter, file)
+	if err != nil {
+		return "file copy error",err
+	}
+
+	//这里必须Close，否则不会向bodyBuf写入boundary分隔符
+	err = bodyWriter.Close();
+	if err != nil {
+		return "bodyWriter close error",err
+	}
+	contentType = bodyWriter.FormDataContentType()
+
+	req, err = http.NewRequest("POST", targetUrl, bodyBuf)
+	if err != nil {
+		return "http post error",err
+	}
+	req.Header.Set("Content-Type",contentType)
+	//req.Header.Set("Authorization",token)
+	resp, err = client.Do(req)
+	if err != nil {
+		return "http client error",err
+	}
+	defer resp.Body.Close()
+
+	respBody, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "ioutil.ReadAll error",err
+	}
+	log.Infof("resp status: %s,resp body: %s",resp.Status, string(respBody))
+	return string(respBody), err
 }
