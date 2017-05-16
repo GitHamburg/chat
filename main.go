@@ -22,9 +22,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"mime/multipart"
-	"os"
-	"io"
+	"./material"
 )
 
 var (
@@ -338,8 +336,10 @@ func encodeJson(v interface{}) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+
 func uploadFile(context echo.Context) error {
 	filename := context.FormValue("filename")
+	log.Printf("微信上传: %v", filename)
 	token, found := TokenCache.Get("token")
 	if !found {
 		log.Printf("token获取失败!")
@@ -350,70 +350,14 @@ func uploadFile(context echo.Context) error {
 		return context.String(200, "token解析失败!")
 	}
 
-	url := "https://qyapi.weixin.qq.com/cgi-bin/media/upload?access_token=" + accessToken.AccessToken + "type=image"
+	url := "https://qyapi.weixin.qq.com/cgi-bin/media/upload?access_token=" + accessToken.AccessToken + "&type=image"
 
-	result, err := postFile(filename,url)
+	result, err := material.MediaUpload(filename,url)
 	if err != nil {
 		log.Printf("请求微信失败: %v", err)
 	}
 	log.Printf("上传图片，微信返回结果: %v", result)
-	return context.String(200, string(result))
+	resultStr, err := json.Marshal(result)
+	return context.String(200,string(resultStr))
 
-}
-func postFile(filename, targetUrl string) (string, error) {
-	var (
-		bodyBuf         *bytes.Buffer
-		bodyWriter      *multipart.Writer
-		file            *os.File
-		err             error
-		contentType     string
-		client          http.Client
-		req             *http.Request
-		resp            *http.Response
-		respBody        []byte
-	)
-	bodyBuf = &bytes.Buffer{}
-	bodyWriter = multipart.NewWriter(bodyBuf)
-
-	fileWriter, err := bodyWriter.CreateFormFile("PolkaFile",filename)
-	if err != nil {
-		return "file writer error",err
-	}
-
-	file, err = os.Open(filename)
-	defer file.Close()
-	if err != nil {
-		return "file close error",err
-	}
-
-	_, err = io.Copy(fileWriter, file)
-	if err != nil {
-		return "file copy error",err
-	}
-
-	//这里必须Close，否则不会向bodyBuf写入boundary分隔符
-	err = bodyWriter.Close();
-	if err != nil {
-		return "bodyWriter close error",err
-	}
-	contentType = bodyWriter.FormDataContentType()
-
-	req, err = http.NewRequest("POST", targetUrl, bodyBuf)
-	if err != nil {
-		return "http post error",err
-	}
-	req.Header.Set("Content-Type",contentType)
-	//req.Header.Set("Authorization",token)
-	resp, err = client.Do(req)
-	if err != nil {
-		return "http client error",err
-	}
-	defer resp.Body.Close()
-
-	respBody, err = ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "ioutil.ReadAll error",err
-	}
-	log.Infof("resp status: %s,resp body: %s",resp.Status, string(respBody))
-	return string(respBody), err
 }
